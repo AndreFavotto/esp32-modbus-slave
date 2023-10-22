@@ -21,7 +21,7 @@
 
 #define HREG_BASE_ADDRESS       40001
 #define DIAGNOSTICS_HREG        (40001 - HREG_BASE_ADDRESS)     //Analog output
-#define LED_BRIGHTNESS_HREG     (40002 - HREG_BASE_ADDRESS)     //Analog output
+#define VALVE_SIGNAL_HREG       (40002 - HREG_BASE_ADDRESS)     //Analog output
 
 /* Pinout */
 #define LEVEL_SWITCH_PIN  12
@@ -47,9 +47,11 @@ static uint16_t cb_led_builtin_coil(TRegister* reg, uint16_t val)
   return val;
 }
 
-static uint16_t cb_led_brightness_hreg(TRegister* reg, uint16_t val)
+static uint16_t cb_valve_signal(TRegister* reg, uint16_t val)
 {
-  val = ((val > 255) ? 255 : val);
+  //scale val from 0-100 to 0-255
+  val = (val * 255) / 100;
+  val = constrain(val, 0, 255);
   led_brightness = val;
   analogWrite(LED_BUILTIN, led_brightness);
   return val;
@@ -91,9 +93,9 @@ void setup() {
   mb.addHreg(DIAGNOSTICS_HREG);
   mb.Hreg(DIAGNOSTICS_HREG, diagnostics);
   
-  mb.addHreg(LED_BRIGHTNESS_HREG);
-  mb.Hreg(LED_BRIGHTNESS_HREG, led_brightness);
-  mb.onSetHreg(LED_BRIGHTNESS_HREG, cb_led_brightness_hreg, 1);
+  mb.addHreg(VALVE_SIGNAL_HREG);
+  mb.Hreg(VALVE_SIGNAL_HREG  , led_brightness);
+  mb.onSetHreg(VALVE_SIGNAL_HREG  , cb_valve_signal  , 1);
 
 }
 
