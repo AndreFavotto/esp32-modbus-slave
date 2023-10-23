@@ -3,8 +3,8 @@
 
 /* Global constants */
 
-#define TANK_LEVEL_MIN_THRESHOLD 90
-#define TANK_LEVEL_MAX_THRESHOLD 900
+#define TANK_LEVEL_MIN_THRESHOLD 100
+#define TANK_LEVEL_MAX_THRESHOLD 3800
 
 /* Modbus pre-processing settings */
 
@@ -17,15 +17,15 @@
 #define LEVEL_SWITCH_I_COIL     (10001 - I_STATUS_BASE_ADDRESS) //Digital input
 
 #define I_REG_BASE_ADDRESS      30001
-#define TANK_LEVEL_I_REG        (30001 - I_REG_BASE_ADDRESS)    //Analog input
+#define TANK_LEVEL_I_REG        (30001 - I_REG_BASE_ADDRESS)    //Analog input (read only)
+#define DIAGNOSTICS_I_REG       (30002 - I_REG_BASE_ADDRESS)    //Analog input (read only)
 
 #define HREG_BASE_ADDRESS       40001
-#define DIAGNOSTICS_HREG        (40001 - HREG_BASE_ADDRESS)     //Analog output
-#define VALVE_SIGNAL_HREG       (40002 - HREG_BASE_ADDRESS)     //Analog output
+#define VALVE_SIGNAL_HREG       (40001 - HREG_BASE_ADDRESS)     //Analog output
 
 /* Pinout */
-#define LEVEL_SWITCH_PIN  12
-#define TANK_LEVEL_PIN 14
+#define LEVEL_SWITCH_PIN  15
+#define TANK_LEVEL_PIN 4
 #define LED_BUILTIN 2
 
 /* Global variables*/
@@ -49,10 +49,8 @@ static uint16_t cb_led_builtin_coil(TRegister* reg, uint16_t val)
 
 static uint16_t cb_valve_signal(TRegister* reg, uint16_t val)
 {
-  //scale val from 0-100 to 0-255
-  val = (val * 255) / 100;
-  val = constrain(val, 0, 255);
-  led_brightness = val;
+  //scale val from 0-65535 to 0-255
+  led_brightness = map(val, 0, 65535, 0, 255);
   analogWrite(LED_BUILTIN, led_brightness);
   return val;
 }
@@ -84,30 +82,30 @@ void setup() {
   mb.addIsts(LEVEL_SWITCH_I_COIL);
   mb.Ists(LEVEL_SWITCH_I_COIL, level_switch);
 
-  /* Add input register */
+  /* Add input registers */
   mb.addIreg(TANK_LEVEL_I_REG);
   mb.Ireg(TANK_LEVEL_I_REG, tank_level);
 
-  /* Add holding registers */
+  mb.addIreg(DIAGNOSTICS_I_REG);
+  mb.Ireg(DIAGNOSTICS_I_REG, diagnostics);
 
-  mb.addHreg(DIAGNOSTICS_HREG);
-  mb.Hreg(DIAGNOSTICS_HREG, diagnostics);
-  
+  /* Add holding register */
+
   mb.addHreg(VALVE_SIGNAL_HREG);
   mb.Hreg(VALVE_SIGNAL_HREG  , led_brightness);
-  mb.onSetHreg(VALVE_SIGNAL_HREG  , cb_valve_signal  , 1);
+  mb.onSetHreg(VALVE_SIGNAL_HREG  , cb_valve_signal, 1);
 
 }
 
 
 void loop() {
 
-  if (millis() - timestamp > 500)
+  if (millis() - timestamp > 200)
     {
       timestamp = millis();
 
       tank_level = analogRead(TANK_LEVEL_PIN);
-      mb.Ists(TANK_LEVEL_I_REG, tank_level);
+      mb.Ireg(TANK_LEVEL_I_REG, tank_level);
 
       level_switch = digitalRead(LEVEL_SWITCH_PIN);
       mb.Ists(LEVEL_SWITCH_I_COIL, level_switch);
@@ -128,7 +126,7 @@ void loop() {
           diagnostics = 0;
         }
 
-      mb.Hreg(DIAGNOSTICS_HREG, diagnostics);
+      mb.Ireg(DIAGNOSTICS_I_REG, diagnostics);
     }
 
   mb.task();
