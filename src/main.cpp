@@ -49,14 +49,12 @@ static uint16_t cb_alarm_buzzer_coil(TRegister* reg, uint16_t val)
 {
   alarm_status = (val != 0);
   digitalWrite(ALARM_BUZZER, alarm_status);
-  Serial.println("Alarm status changed");
   return val;
 }
 
 static uint16_t cb_valve_signal(TRegister* reg, uint16_t val)
 {
-  //scale val from 0-65535 to 0-255
-  valve_output = map(val, 0, 65535, 0, 255);
+  valve_output = val;
   analogWrite(VALVE_SIGNAL_LEDBUILTIN, valve_output);
   return val;
 }
